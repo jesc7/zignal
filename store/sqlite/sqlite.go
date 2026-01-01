@@ -47,6 +47,20 @@ func newSQLiteStore(dbName string) (*SQLiteStore, error) {
 	return store, e
 }
 
+func GenerateKey() (int, error) {
+	const (
+		KEYVALUE_MIN = 100_000
+		KEYVALUE_MAX = 999_999
+	)
+	var key int //генерируем ключ
+	for i, found := 0, true; i <= 1000 && found; _, found = keys[key] {
+		key, i = rnd.Intn(KEYVALUE_MAX-KEYVALUE_MIN+1)+KEYVALUE_MIN, i+1
+	}
+	if key == 0 {
+		return 0, "", errors.New("key doesnt generated")
+	}
+}
+
 func (store *SQLiteStore) SendOffer(value string, args ...any) (int, string, error) {
 	const (
 		KEYVALUE_MIN = 100_000
