@@ -125,19 +125,14 @@ var (
 	clients = make(map[*websocket.Conn]*client)
 )
 
-func generateKey(length int) (key string, e error) {
-	for i, found := 0, true; i <= 1000 && found; _, found = keys[key] {
-		key, i = rnd.Intn(keyMax-keyMin+1)+keyMin, i+1
-	}
-
-	var found bool
+func generateKey(length int) (string, error) {
 	for range 1000 {
 		key := util.RandomString(length, "0123456789")
-		if _, found = keys[key]; !found {
-			break
+		if _, ok := keys[key]; !ok {
+			return key, nil
 		}
-
 	}
+	return "", errors.New("error key generate")
 }
 
 func handleWS(w http.ResponseWriter, r *http.Request) {
@@ -148,15 +143,21 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mut.Lock()
-	for i := 0; i < 1000; i++ {
-		key := util.RandomString(6, "0123456789")
-		if _, found = keys[key]; !found {
-			break
-		}
+	key, e := generateKey(6) //генерим ключ
+	if e != nil {
+		log.Printf("error: %v", e)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(e.Error()))
+		return
 	}
-	//if
 
+	mut.Lock() //добавляем клиента в коллекцию
+	keys[key] = conn
+	clients[conn] = &client{
+		key:       key,
+		pwd:       util.RandomString(4, ""),
+		isOfferer: true,
+	}
 	mut.Unlock()
 
 	for {
