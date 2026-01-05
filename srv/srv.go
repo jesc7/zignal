@@ -201,25 +201,21 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					return errors.New("Ключ/пароль не найдены")
 				}
 
-				key, pwd := sl[0], sl[1]
-				var ok bool
+				key, pwd, ok := sl[0], sl[1], false
 				answerer, ok = keys[key] //ищем в мапе ключей
 				if !ok {
 					log.Printf("Key not found: %s", msg.Key)
 					return errors.New("Ключ/пароль не найдены")
 				}
 
-				offerer, ok := clients[answerer] //ищем в мапе клиентов
-				if !ok || offerer.pwd != pwd {
+				client, ok := clients[answerer] //ищем в мапе клиентов
+				if !ok || client.pwd != pwd {
 					log.Printf("Client not found, key@pwd: %s", msg.Key)
 					return errors.New("Ключ/пароль не найдены")
 				}
 
-				answer.Type
-				offererConn.WriteJSON(Msg{
-					Type:  MT_RECEIVEANSWER,
-					Value: msg.Value,
-				})
+				answer.Type = MT_RECEIVEANSWER
+				answer.Value = msg.Value
 
 			default:
 				needAnswer = false
