@@ -173,6 +173,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			receiver, msgAnswer, needAnswer := &websocket.Conn{}, Msg{Type: msg.Type}, true
 			defer func() {
 				if e != nil {
+					log.Println(e)
 					msgAnswer.Code = -1
 					msgAnswer.Value = e.Error()
 					time.Sleep(3 * time.Second)
@@ -203,37 +204,28 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			}
 
 			switch msg.Type {
-			case MT_SENDOFFER: //клиент отправил offer, в ответ шлем key и password
+			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
 				receiver = conn
 				client := clients[conn]
 				client.isOfferer = true
 				client.payload = msg.Value
 				msgAnswer.Key = client.key + "@" + client.pwd
 
-			case MT_SENDAUTH: //клиент отправил auth
+			case MT_SENDAUTH: //клиент2 отправил auth
 				receiver = conn
-				sl := strings.Split(msg.Key, "@")
-				if len(sl) < 2 {
-					log.Printf("Wrong key: %s", msg.Key)
-					return errors.New("Ключ/пароль не найдены")
+				client, e := _auth(msg.Key)
+				if e != nil {
+					return e
 				}
+				msgAnswer.Value = client.payload //авторизация пройдена, отдаем offer клиента1
 
-				key, pwd, ok := sl[0], sl[1], false
-				receiver, ok = keys[key] //ищем в мапе ключей
-				if !ok {
-					log.Printf("Key not found: %s", msg.Key)
-					return errors.New("Ключ/пароль не найдены")
+			case MT_SENDANSWER: //клиент2 отправил answer, пересылаем клиенту1
+				client, e := _auth(msg.Key)
+				if e != nil {
+					needAnswer = false
+					return e
 				}
-
-				client, ok := clients[receiver] //ищем в мапе клиентов
-				if !ok || client.pwd != pwd {
-					log.Printf("Client not found, key@pwd: %s", msg.Key)
-					return errors.New("Ключ/пароль не найдены")
-				}
-
-				msgAnswer.Value = client.payload //авторизация пройдена, отдаем offer
-
-			case MT_SENDANSWER: //клиент отправил answer
+				receiver = keys[client.key]
 				msgAnswer.Type = MT_RECEIVEANSWER
 				msgAnswer.Value = msg.Value
 
