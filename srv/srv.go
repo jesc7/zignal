@@ -125,17 +125,29 @@ var (
 	clients = make(map[*websocket.Conn]*client)
 )
 
+func generateKey(length int) (key string, e error) {
+	for i, found := 0, true; i <= 1000 && found; _, found = keys[key] {
+		key, i = rnd.Intn(keyMax-keyMin+1)+keyMin, i+1
+	}
+
+	var found bool
+	for range 1000 {
+		key := util.RandomString(length, "0123456789")
+		if _, found = keys[key]; !found {
+			break
+		}
+
+	}
+}
+
 func handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, e := upgrader.Upgrade(w, r, nil)
 	if e != nil {
 		log.Printf("error: %v", e)
+		w.WriteHeader(http.StatusUpgradeRequired)
 		return
 	}
 
-	var (
-		key   string
-		found bool
-	)
 	mut.Lock()
 	for i := 0; i < 1000; i++ {
 		key := util.RandomString(6, "0123456789")
@@ -143,6 +155,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+	//if
 
 	mut.Unlock()
 
