@@ -1,0 +1,2 @@
+2026/01/05 20:39:10 Read message error: json: cannot unmarshal string into Go struct field Msg.type of type int
+2026/01/05 20:41:47 Read message error: json: cannot unmarshal string into Go struct field Msg.type of type int
