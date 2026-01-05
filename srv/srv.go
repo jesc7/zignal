@@ -186,6 +186,22 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				}
 			}()
 
+			_auth := func(key string) (c *Client, e error) {
+				e = errors.New("Ключ/пароль не найдены")
+				sl := strings.Split(key, "@")
+				if len(sl) < 2 {
+					return
+				}
+				conn, ok := keys[sl[0]] //ищем в мапе ключей
+				if !ok {
+					return
+				}
+				if c, ok = clients[conn]; !ok || c.pwd != sl[1] { //ищем в мапе клиентов
+					return
+				}
+				return c, nil
+			}
+
 			switch msg.Type {
 			case MT_SENDOFFER: //клиент отправил offer, в ответ шлем key и password
 				receiver = conn
