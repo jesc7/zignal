@@ -153,11 +153,10 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		pwd:       util.RandomString(4, ""),
 		isOfferer: true,
 	}
-	client := clients[conn]
 	mut.Unlock()
 
 	defer func() {
-		delete(keys, client.key)
+		delete(keys, clients[conn].key)
 		delete(clients, conn)
 	}()
 
@@ -190,6 +189,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			switch msg.Type {
 			case MT_SENDOFFER: //клиент отправил offer, в ответ шлем key и password
 				answerer = conn
+				client := clients[conn]
 				client.isOfferer = true
 				client.payload = msg.Value
 				answer.Key = client.key + "@" + client.pwd
@@ -215,6 +215,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					return errors.New("Ключ/пароль не найдены")
 				}
 
+				answer.Type
 				offererConn.WriteJSON(Msg{
 					Type:  MT_RECEIVEANSWER,
 					Value: msg.Value,
