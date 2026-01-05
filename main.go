@@ -49,7 +49,7 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
-func main() { //11111111111111111
+func main() { //2222222222222222
 	//настроим логирование
 	flog, e := os.OpenFile(strings.TrimSuffix(os.Args[0], filepath.Ext(os.Args[0]))+".log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if e != nil {
