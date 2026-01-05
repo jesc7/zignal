@@ -108,7 +108,7 @@ type Client struct {
 	key          string
 	pwd          string
 	isOfferer    bool
-	sdp          string
+	payload      string
 	answererConn *websocket.Conn
 }
 
@@ -140,7 +140,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	key, e := generateKey(6) //генерим ключ
 	if e != nil {
 		mut.Unlock()
-		log.Printf("error: %v", e)
+		log.Printf("Generate key error: %v", e)
 		time.Sleep(3 * time.Second)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(e.Error()))
@@ -159,7 +159,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	for {
 		var msg Msg
 		if e := conn.ReadJSON(&msg); e != nil {
-			log.Printf("error: %v", e)
+			log.Printf("Read message error: %v", e)
 			break
 		}
 
@@ -171,6 +171,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				if e != nil {
 					answer.Code = -1
 					answer.Value = e.Error()
+					time.Sleep(3 * time.Second)
 				}
 				if needAnswer {
 					log.Printf("OUT: %#v", answer)
@@ -184,28 +185,27 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			switch msg.Type {
 			case MT_SENDOFFER: //клиент отправил offer, в ответ шлем key и password
 				client.isOfferer = true
-				client.sdp = msg.Value
+				client.payload = msg.Value
 				answer.Key = client.key + "@" + client.pwd
 
 			case MT_SENDANSWER: //клиент отправил answer
 				sl := strings.Split(msg.Key, "@")
 				if len(sl) < 2 {
-					needAnswer = false
 					log.Printf("Wrong key: %s", msg.Key)
-					break
+					return errors.New("Ключ/пароль не найдены")
 				}
+
 				key, pwd := sl[0], sl[1]
 				offererConn, ok := keys[key] //ищем в мапе ключей
 				if !ok {
-					needAnswer = false
 					log.Printf("Key not found: %s", msg.Key)
-					break
+					return errors.New("Ключ/пароль не найдены")
 				}
+
 				offerer, ok := clients[offererConn] //ищем в мапе клиентов
 				if !ok || offerer.pwd != pwd {
-					needAnswer = false
 					log.Printf("Client not found, key@pwd: %s", msg.Key)
-					break
+					return errors.New("Ключ/пароль не найдены")
 				}
 
 				offererConn.WriteJSON(Msg{
