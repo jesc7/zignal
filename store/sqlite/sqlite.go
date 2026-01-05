@@ -18,9 +18,9 @@ type SQLiteStore struct {
 }
 
 var (
-	keys = make(map[int]any)
-	rnd  = rand.New(rand.NewSource(time.Now().UnixNano()))
 	mut  sync.Mutex
+	rnd  = rand.New(rand.NewSource(time.Now().UnixNano()))
+	keys = make(map[int]any)
 )
 
 func init() {
