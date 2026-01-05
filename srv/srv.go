@@ -156,6 +156,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	client := clients[conn]
 	mut.Unlock()
 
+	defer func() {
+		delete(keys, client.key)
+		delete(clients, conn)
+	}()
+
 	for {
 		var msg Msg
 		if e := conn.ReadJSON(&msg); e != nil {
@@ -166,7 +171,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		log.Printf("IN:  %#v", msg)
 
 		func() (e error) {
-			answer, needAnswer := Msg{Type: msg.Type}, true
+			answerer, answer, needAnswer := &websocket.Conn{}, Msg{Type: msg.Type}, true
 			defer func() {
 				if e != nil {
 					answer.Code = -1
@@ -176,7 +181,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				if needAnswer {
 					log.Printf("OUT: %#v", answer)
 
-					if e = conn.WriteJSON(answer); e != nil {
+					if e = answerer.WriteJSON(answer); e != nil {
 						log.Printf("error: %v", e)
 					}
 				}
@@ -184,6 +189,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			switch msg.Type {
 			case MT_SENDOFFER: //клиент отправил offer, в ответ шлем key и password
+				answerer = conn
 				client.isOfferer = true
 				client.payload = msg.Value
 				answer.Key = client.key + "@" + client.pwd
@@ -196,13 +202,14 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				}
 
 				key, pwd := sl[0], sl[1]
-				offererConn, ok := keys[key] //ищем в мапе ключей
+				var ok bool
+				answerer, ok = keys[key] //ищем в мапе ключей
 				if !ok {
 					log.Printf("Key not found: %s", msg.Key)
 					return errors.New("Ключ/пароль не найдены")
 				}
 
-				offerer, ok := clients[offererConn] //ищем в мапе клиентов
+				offerer, ok := clients[answerer] //ищем в мапе клиентов
 				if !ok || offerer.pwd != pwd {
 					log.Printf("Client not found, key@pwd: %s", msg.Key)
 					return errors.New("Ключ/пароль не найдены")
