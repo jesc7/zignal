@@ -169,6 +169,8 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 		log.Printf("IN:  %#v", msg)
 
+		var needBreak bool
+
 		func() (e error) {
 			receiver, msgAnswer, needAnswer := &websocket.Conn{}, Msg{Type: msg.Type}, true
 			defer func() {
@@ -229,11 +231,21 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				msgAnswer.Type = MT_RECEIVEANSWER
 				msgAnswer.Value = msg.Value
 
+				conn.WriteJSON(Msg{ //шлем ответ клиенту2, что все ок
+					Type:  msg.Type,
+					Key:   msg.Key,
+					Value: "done",
+				})
+				needBreak = true
+
 			default:
 				needAnswer = false
 				log.Printf("Wrong type: %d", msg.Type)
 			}
 			return nil
 		}()
+		if needBreak {
+			break
+		}
 	}
 }
