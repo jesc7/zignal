@@ -228,6 +228,12 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				msgAnswer.Type = MT_RECEIVEANSWER
 				msgAnswer.Value = msg.Value
 
+				go func(conn *websocket.Conn) {
+					defer func() { recover() }()
+					time.Sleep(10 * time.Second)
+					conn.Close() //принудительно закрываем соединение клиента1 через 10сек, т.к. сведение пиров завершено
+				}(receiver)
+
 				if e = conn.WriteJSON(Msg{ //шлем ответ клиенту2, что все ок
 					Type: msg.Type,
 					Key:  msg.Key,
@@ -243,7 +249,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				needAnswer = false
 				log.Printf("Wrong type: %d", msg.Type)
 			}
-			return nil
+			return
 		}(); exit {
 			break
 		}
