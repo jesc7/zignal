@@ -169,9 +169,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 		log.Printf("IN:  %#v", msg)
 
-		var needBreak bool
-
-		func() (e error) {
+		if exit, _ := func() (exit bool, e error) {
 			receiver, msgAnswer, needAnswer := &websocket.Conn{}, Msg{Type: msg.Type}, true
 			defer func() {
 				if e != nil {
@@ -184,7 +182,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					log.Printf("OUT: %#v", msgAnswer)
 
 					if e = receiver.WriteJSON(msgAnswer); e != nil {
-						log.Printf("error: %v", e)
+						log.Printf("Error: %v", e)
 					}
 				}
 			}()
@@ -205,46 +203,48 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				return c, nil
 			}
 
+			var client *Client
 			switch msg.Type {
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
 				receiver = conn
-				client := clients[conn]
+				client = clients[conn]
 				client.isOfferer = true
 				client.payload = msg.Value
 				msgAnswer.Key = client.key + "@" + client.pwd
 
 			case MT_SENDAUTH: //клиент2 отправил auth
 				receiver = conn
-				client, e := _auth(msg.Key)
-				if e != nil {
-					return e
+				if client, e = _auth(msg.Key); e != nil {
+					return
 				}
 				msgAnswer.Value = client.payload //авторизация пройдена, отдаем offer клиента1
 
 			case MT_SENDANSWER: //клиент2 отправил answer, пересылаем клиенту1
-				client, e := _auth(msg.Key)
+				client, e = _auth(msg.Key)
 				if e != nil {
-					needAnswer = false
-					return e
+					return
 				}
 				receiver = keys[client.key]
 				msgAnswer.Type = MT_RECEIVEANSWER
 				msgAnswer.Value = msg.Value
 
-				conn.WriteJSON(Msg{ //шлем ответ клиенту2, что все ок
-					Type:  msg.Type,
-					Key:   msg.Key,
-					Value: "done",
-				})
-				needBreak = true
+				if e = conn.WriteJSON(Msg{ //шлем ответ клиенту2, что все ок
+					Type: msg.Type,
+					Key:  msg.Key,
+				}); e != nil {
+					log.Printf("Error: %v", e)
+				}
+				exit = true //клиенту2 сигнальный сервер больше не нужен, выходим
+
+			case MT_RECEIVEANSWER: //клиент1 подтвердил получение answer
+				exit = true //клиенту1 сигнальный сервер больше не нужен, выходим
 
 			default:
 				needAnswer = false
 				log.Printf("Wrong type: %d", msg.Type)
 			}
 			return nil
-		}()
-		if needBreak {
+		}(); exit {
 			break
 		}
 	}
