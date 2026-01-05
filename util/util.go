@@ -3,6 +3,8 @@ package util
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"math/rand"
@@ -72,4 +74,26 @@ func Unzip(in []byte) ([]byte, error) {
 		return []byte{}, e
 	}
 	return res, nil
+}
+
+func Encode(v any) (string, error) {
+	b, e := json.Marshal(v)
+	if e != nil {
+		return "", e
+	}
+	if b, e = Zip(b); e != nil {
+		return "", e
+	}
+	return base64.StdEncoding.EncodeToString(b), nil
+}
+
+func Decode(in string, v any) error {
+	b, e := base64.StdEncoding.DecodeString(in)
+	if e != nil {
+		return e
+	}
+	if b, e = Unzip(b); e != nil {
+		return e
+	}
+	return json.Unmarshal(b, v)
 }

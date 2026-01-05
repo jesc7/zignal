@@ -2,7 +2,6 @@ package srv
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -224,26 +223,4 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}()
 	}
-}
-
-func Encode(obj any) (string, error) {
-	b, e := json.Marshal(obj)
-	if e != nil {
-		return "", e
-	}
-	if b, e = util.Zip(b); e != nil {
-		return "", e
-	}
-	return base64.StdEncoding.EncodeToString(b), nil
-}
-
-func Decode(in string, obj any) error {
-	b, e := base64.StdEncoding.DecodeString(in)
-	if e != nil {
-		return e
-	}
-	if b, e = util.Unzip(b); e != nil {
-		return e
-	}
-	return json.Unmarshal(b, obj)
 }
