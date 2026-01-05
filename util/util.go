@@ -81,9 +81,9 @@ func Encode(v any) (string, error) {
 	if e != nil {
 		return "", e
 	}
-	if b, e = Zip(b); e != nil {
+	/*if b, e = Zip(b); e != nil {
 		return "", e
-	}
+	}*/
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
@@ -92,8 +92,8 @@ func Decode(in string, v any) error {
 	if e != nil {
 		return e
 	}
-	if b, e = Unzip(b); e != nil {
+	/*if b, e = Unzip(b); e != nil {
 		return e
-	}
+	}*/
 	return json.Unmarshal(b, v)
 }
