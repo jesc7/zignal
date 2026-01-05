@@ -110,10 +110,19 @@ type Msg struct {
 	Value string `json:"val,omitzero"`
 }
 
+type client struct {
+	key          string
+	pwd          string
+	isOfferer    bool
+	sdp          string
+	answererConn *websocket.Conn
+}
+
 var (
-	mut  sync.Mutex
-	rnd  = rand.New(rand.NewSource(time.Now().UnixNano()))
-	keys = make(map[int]any)
+	mut     sync.Mutex
+	rnd     = rand.New(rand.NewSource(time.Now().UnixNano()))
+	keys    = make(map[string]*websocket.Conn)
+	clients = make(map[*websocket.Conn]*client)
 )
 
 func handleWS(w http.ResponseWriter, r *http.Request) {
