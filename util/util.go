@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"strings"
+	"time"
 )
 
 func IsFileExists(filename string) bool {
@@ -19,6 +20,8 @@ func IsFileExists(filename string) bool {
 
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
+var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
+
 func RandomString(n int, set string) string {
 	if set == "" {
 		set = charset
@@ -26,7 +29,7 @@ func RandomString(n int, set string) string {
 	sb := strings.Builder{}
 	sb.Grow(n)
 	for i, l := 0, len(set); i < n; i++ {
-		sb.WriteByte(set[rand.Intn(l)])
+		sb.WriteByte(set[rnd.Intn(l)])
 	}
 	return sb.String()
 }

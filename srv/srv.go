@@ -7,14 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -110,7 +108,7 @@ type Msg struct {
 	Value string `json:"val,omitzero"`
 }
 
-type client struct {
+type Client struct {
 	key          string
 	pwd          string
 	isOfferer    bool
@@ -120,9 +118,8 @@ type client struct {
 
 var (
 	mut     sync.Mutex
-	rnd     = rand.New(rand.NewSource(time.Now().UnixNano()))
 	keys    = make(map[string]*websocket.Conn)
-	clients = make(map[*websocket.Conn]*client)
+	clients = make(map[*websocket.Conn]*Client)
 )
 
 func generateKey(length int) (string, error) {
@@ -153,11 +150,12 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 	mut.Lock() //добавляем клиента в коллекцию
 	keys[key] = conn
-	clients[conn] = &client{
+	clients[conn] = &Client{
 		key:       key,
 		pwd:       util.RandomString(4, ""),
 		isOfferer: true,
 	}
+	client := clients[conn]
 	mut.Unlock()
 
 	for {
