@@ -22,6 +22,7 @@ import (
 
 const (
 	MT_SENDOFFER     = iota //клиент1 отправил offer
+	MT_SENDAUTH             //клиент2 отправил auth
 	MT_SENDANSWER           //клиент2 отправил answer
 	MT_RECEIVEANSWER        //клиенту1 отправили answer клиента2
 )
@@ -169,17 +170,17 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		log.Printf("IN:  %#v", msg)
 
 		func() (e error) {
-			answerer, answer, needAnswer := &websocket.Conn{}, Msg{Type: msg.Type}, true
+			receiver, msgAnswer, needAnswer := &websocket.Conn{}, Msg{Type: msg.Type}, true
 			defer func() {
 				if e != nil {
-					answer.Code = -1
-					answer.Value = e.Error()
+					msgAnswer.Code = -1
+					msgAnswer.Value = e.Error()
 					time.Sleep(3 * time.Second)
 				}
 				if needAnswer {
-					log.Printf("OUT: %#v", answer)
+					log.Printf("OUT: %#v", msgAnswer)
 
-					if e = answerer.WriteJSON(answer); e != nil {
+					if e = receiver.WriteJSON(msgAnswer); e != nil {
 						log.Printf("error: %v", e)
 					}
 				}
@@ -187,13 +188,14 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			switch msg.Type {
 			case MT_SENDOFFER: //клиент отправил offer, в ответ шлем key и password
-				answerer = conn
+				receiver = conn
 				client := clients[conn]
 				client.isOfferer = true
 				client.payload = msg.Value
-				answer.Key = client.key + "@" + client.pwd
+				msgAnswer.Key = client.key + "@" + client.pwd
 
-			case MT_SENDANSWER: //клиент отправил answer
+			case MT_SENDAUTH: //клиент отправил auth
+				receiver = conn
 				sl := strings.Split(msg.Key, "@")
 				if len(sl) < 2 {
 					log.Printf("Wrong key: %s", msg.Key)
@@ -201,20 +203,23 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				}
 
 				key, pwd, ok := sl[0], sl[1], false
-				answerer, ok = keys[key] //ищем в мапе ключей
+				receiver, ok = keys[key] //ищем в мапе ключей
 				if !ok {
 					log.Printf("Key not found: %s", msg.Key)
 					return errors.New("Ключ/пароль не найдены")
 				}
 
-				client, ok := clients[answerer] //ищем в мапе клиентов
+				client, ok := clients[receiver] //ищем в мапе клиентов
 				if !ok || client.pwd != pwd {
 					log.Printf("Client not found, key@pwd: %s", msg.Key)
 					return errors.New("Ключ/пароль не найдены")
 				}
 
-				answer.Type = MT_RECEIVEANSWER
-				answer.Value = msg.Value
+				msgAnswer.Value = client.payload //авторизация пройдена, отдаем offer
+
+			case MT_SENDANSWER: //клиент отправил answer
+				msgAnswer.Type = MT_RECEIVEANSWER
+				msgAnswer.Value = msg.Value
 
 			default:
 				needAnswer = false
