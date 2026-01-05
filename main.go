@@ -61,9 +61,9 @@ func main() {
 	//конфиг сервиса
 	p := &program{}
 	s, e := service.New(p, &service.Config{
-		Name:        "zsdp",
-		DisplayName: "SDP offers exchange service",
-		Description: "SDP offers exchange service",
+		Name:        "zignal",
+		DisplayName: "Simple signaling server",
+		Description: "Simple signaling server",
 	})
 	if e != nil {
 		log.Fatal(e)
