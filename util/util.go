@@ -19,11 +19,14 @@ func IsFileExists(filename string) bool {
 
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-func RandomString(n int) string {
+func RandomString(n int, set string) string {
+	if set == "" {
+		set = charset
+	}
 	sb := strings.Builder{}
 	sb.Grow(n)
-	for i, l := 0, len(charset); i < n; i++ {
-		sb.WriteByte(charset[rand.Intn(l)])
+	for i, l := 0, len(set); i < n; i++ {
+		sb.WriteByte(set[rand.Intn(l)])
 	}
 	return sb.String()
 }

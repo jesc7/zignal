@@ -132,6 +132,20 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var (
+		key   string
+		found bool
+	)
+	mut.Lock()
+	for i := 0; i < 1000; i++ {
+		key := util.RandomString(6, "0123456789")
+		if _, found = keys[key]; !found {
+			break
+		}
+	}
+
+	mut.Unlock()
+
 	for {
 		var msg Msg
 		if e := conn.ReadJSON(&msg); e != nil {
