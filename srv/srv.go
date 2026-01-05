@@ -199,19 +199,20 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					break
 				}
 				key, pwd := sl[0], sl[1]
-				keys[key]
-
-				var obj any
-				obj, e = store.Store.SendAnswer(msg.Key, msg.Pwd, msg.Value)
-				if e != nil {
-					return
-				}
-				c, ok := obj.(*websocket.Conn)
+				offererConn, ok := keys[key] //ищем в мапе ключей
 				if !ok {
-					e = errors.New("wrong obj type")
-					return
+					needAnswer = false
+					log.Printf("Key not found: %s", msg.Key)
+					break
 				}
-				c.WriteJSON(Msg{
+				offerer, ok := clients[offererConn] //ищем в мапе клиентов
+				if !ok || offerer.pwd != pwd {
+					needAnswer = false
+					log.Printf("Client not found, key@pwd: %s", msg.Key)
+					break
+				}
+
+				offererConn.WriteJSON(Msg{
 					Type:  MT_RECEIVEANSWER,
 					Value: msg.Value,
 				})
