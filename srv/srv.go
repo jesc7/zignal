@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -105,6 +106,7 @@ type Msg struct {
 	Type  int    `json:"type"`
 	Code  int    `json:"code"`
 	Error string `json:"error,omitzero"`
+	Key   string `json:"key,omitzero"`
 	Value string `json:"val,omitzero"`
 }
 
@@ -185,9 +187,20 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			switch msg.Type {
 			case MT_SENDOFFER: //клиент отправил offer, в ответ шлем key и password
-				answer.Key, answer.Pwd, e = store.Store.SendOffer(msg.Value, conn)
+				client.isOfferer = true
+				client.sdp = msg.Value
+				answer.Key = client.key + "@" + client.pwd
 
 			case MT_SENDANSWER: //клиент отправил answer
+				sl := strings.Split(msg.Key, "@")
+				if len(sl) < 2 {
+					needAnswer = false
+					log.Printf("Wrong key: %s", msg.Key)
+					break
+				}
+				key, pwd := sl[0], sl[1]
+				keys[key]
+
 				var obj any
 				obj, e = store.Store.SendAnswer(msg.Key, msg.Pwd, msg.Value)
 				if e != nil {
