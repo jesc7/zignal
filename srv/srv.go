@@ -5,12 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"syscall"
 
@@ -41,7 +41,9 @@ func Start(ctx context.Context, service bool) error {
 	type Config struct {
 		Port int
 	}
-	var cfg Config
+	cfg := Config{
+		Port: 1212,
+	}
 
 	if util.IsFileExists(filepath.Join(filepath.Dir(bin), "cfg.json")) {
 		f, e := os.ReadFile(filepath.Join(filepath.Dir(bin), "cfg.json"))
@@ -57,7 +59,7 @@ func Start(ctx context.Context, service bool) error {
 		return errors.New("Store wasnt initialized")
 	}
 
-	server := &http.Server{Addr: ":" + strconv.Itoa(util.Iif(cfg.Port > 0, cfg.Port, 1212))}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", cfg.Port)}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -113,6 +115,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, e := upgrader.Upgrade(w, r, nil)
 	if e != nil {
 		log.Printf("error: %v", e)
+		return
 	}
 
 	for {
