@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jesc7/zsdp/srv"
+	"github.com/jesc7/zignal/srv"
 	"github.com/kardianos/service"
 )
 

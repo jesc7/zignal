@@ -14,13 +14,11 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-
-	"github.com/jesc7/zsdp/store"
-	_ "github.com/jesc7/zsdp/store/sqlite"
-	"github.com/jesc7/zsdp/util"
+	"github.com/jesc7/zignal/util"
 )
 
 const (
@@ -54,10 +52,6 @@ func Start(ctx context.Context, service bool) error {
 		if e = json.Unmarshal(f, &cfg); e != nil {
 			return e
 		}
-	}
-
-	if store.Store == nil {
-		return errors.New("Store wasnt initialized")
 	}
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", cfg.Port)}
@@ -142,16 +136,18 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	mut.Lock()
 	key, e := generateKey(6) //генерим ключ
 	if e != nil {
+		mut.Unlock()
 		log.Printf("error: %v", e)
+		time.Sleep(3 * time.Second)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(e.Error()))
 		return
 	}
 
-	mut.Lock() //добавляем клиента в коллекцию
-	keys[key] = conn
+	keys[key] = conn //добавляем клиента в коллекцию
 	clients[conn] = &Client{
 		key:       key,
 		pwd:       util.RandomString(4, ""),
