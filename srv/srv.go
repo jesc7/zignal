@@ -137,7 +137,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mut.Lock()
-	key, e := generateKey(6) //генерим ключ
+	key, e := generateKey(8) //генерим ключ
 	if e != nil {
 		mut.Unlock()
 		log.Printf("Generate key error: %v", e)
@@ -150,7 +150,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	keys[key] = conn //добавляем клиента в коллекцию
 	clients[conn] = &Client{
 		key:       key,
-		pwd:       util.RandomString(4, ""),
+		pwd:       util.RandomString(4, "0123456789"),
 		isOfferer: true,
 	}
 	mut.Unlock()
@@ -228,11 +228,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				msgAnswer.Type = MT_RECEIVEANSWER
 				msgAnswer.Value = msg.Value
 
-				go func(conn *websocket.Conn) {
+				go func() {
 					defer func() { recover() }()
 					time.Sleep(10 * time.Second)
-					conn.Close() //принудительно закрываем соединение клиента1 через 10сек, т.к. сведение пиров завершено
-				}(receiver)
+					receiver.Close() //принудительно закрываем соединение клиента1 через 10сек, т.к. сведение пиров завершено
+				}()
 
 				if e = conn.WriteJSON(Msg{ //шлем ответ клиенту2, что все ок
 					Type: msg.Type,
