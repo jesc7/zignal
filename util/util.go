@@ -45,15 +45,15 @@ func Iif[T any](b bool, v1, v2 T) T {
 
 func Zip(in []byte) ([]byte, error) {
 	var b bytes.Buffer
-	gz := gzip.NewWriter(&b)
-	_, e := gz.Write(in)
+	w := gzip.NewWriter(&b)
+	_, e := w.Write(in)
 	if e != nil {
 		return []byte{}, e
 	}
-	if e = gz.Flush(); e != nil {
+	if e = w.Flush(); e != nil {
 		return []byte{}, e
 	}
-	if e = gz.Close(); e != nil {
+	if e = w.Close(); e != nil {
 		return []byte{}, e
 	}
 	return b.Bytes(), nil
@@ -69,11 +69,7 @@ func Unzip(in []byte) ([]byte, error) {
 	if e != nil {
 		return []byte{}, e
 	}
-	res, e := io.ReadAll(r)
-	if e != nil {
-		return []byte{}, e
-	}
-	return res, nil
+	return io.ReadAll(r)
 }
 
 func Encode(v any) (string, error) {
