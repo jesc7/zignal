@@ -111,7 +111,7 @@ type Client struct {
 	key          string
 	pwd          string
 	isOfferer    bool
-	payload      string
+	offer        string
 	answererConn *websocket.Conn
 }
 
@@ -131,7 +131,7 @@ func generateKey(length int) (string, error) {
 	return "", errors.New("error key generate")
 }
 
-func getOfferer(key string) (*Client, error) {
+func getClient(key string) (*Client, error) {
 	sl := strings.Split(key, "@")
 	if len(sl) < 2 {
 		return nil, ErrKeyNotFound
@@ -234,21 +234,27 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
 				receiver = conn
 				me.isOfferer = true
-				me.payload = msg.Value
+				me.offer = msg.Value
 				answer.Key = me.key + "@" + me.pwd
 
 			case MT_SENDAUTH: //клиент2 отправил auth (пару ключ@пароль)
 				receiver = conn
 				me.isOfferer = false //клиент перестает быть офферером
-				me.payload = ""
-				if client, e = getOfferer(msg.Key); e != nil {
+				me.offer = ""
+				if client, e = getClient(msg.Key); e != nil {
 					return
 				}
-				answer.Value = client.payload //авторизация пройдена, отдаем offer клиента1
+				if client.answererConn != nil {
+					if clients[client.answererConn] != nil {
+						return false, errors.New("Клиент уже установил соединение")
+					}
+					client.answererConn = nil
+				}
+
+				answer.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
 
 			case MT_SENDANSWER: //клиент2 отправил answer, пересылаем клиенту1
-				client, e = getOfferer(msg.Key)
-				if e != nil {
+				if client, e = getClient(msg.Key); e != nil {
 					return
 				}
 				receiver = keys[client.key]
