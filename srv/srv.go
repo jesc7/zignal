@@ -135,13 +135,15 @@ type Msg struct {
 type Client struct {
 	key       string
 	pwd       string
-	isOfferer bool
 	offer     string
 	conn      *websocket.Conn
 	pair      *websocket.Conn
 	busy      bool
+	prevType  MessageType
 	heartbeat int64
 }
+
+func (c *Client) IsOfferer() bool { return c.offer != "" }
 
 var (
 	mu      sync.Mutex
@@ -175,28 +177,6 @@ func getClient(key string) (*Client, error) {
 	return c, nil
 }
 
-func checkType(c *Client, mt MessageType) error {
-	switch c.isOfferer {
-	case true:
-		switch mt {
-		case MT_SENDOFFER:
-		case MT_RECEIVEANSWER:
-		default:
-			return errors.New("Несогласованная команда")
-		}
-
-	default:
-		switch mt {
-		case MT_SENDOFFER:
-		case MT_SENDAUTH:
-		case MT_SENDANSWER:
-		default:
-			return errors.New("Несогласованная команда")
-		}
-	}
-	return nil
-}
-
 func handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, e := upgrader.Upgrade(w, r, nil)
 	if e != nil {
@@ -218,10 +198,9 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 	keys[key] = conn //добавляем клиента в коллекцию
 	me := &Client{
-		key:       key,
-		pwd:       util.RandomString(4, "0123456789"),
-		isOfferer: true, //изначально все клиенты - оффереры
-		conn:      conn,
+		key:  key,
+		pwd:  util.RandomString(4, "0123456789"),
+		conn: conn,
 	}
 	clients[conn] = me
 	mu.Unlock()
@@ -265,17 +244,15 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				me.heartbeat = time.Now().Unix()
 
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
-				me.isOfferer = true
 				me.offer = msg.Value
 				me.pair = nil
 				me.busy = false
 				answer.Key = me.key + "@" + me.pwd
 
 			case MT_SENDAUTH: //клиент2 отправил auth (пару ключ@пароль)
-				me.isOfferer = false //клиент перестает быть Offerer и становится Answerer
-				me.offer = ""
+				me.offer = "" //клиент перестает быть Offerer и становится Answerer
 				me.pair = nil
-				if client, e = getClient(msg.Key); e != nil || !client.isOfferer || client.busy {
+				if client, e = getClient(msg.Key); e != nil || !client.IsOfferer() || client.busy {
 					return false, ErrClientNotFound
 				}
 				me.pair = client.conn
@@ -285,7 +262,6 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				if me.pair == nil {
 					return false, ErrUnacceptableCommand
 				}
-
 				if e = me.pair.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
 					Type:  MT_RECEIVEANSWER,
 					Value: msg.Value,
