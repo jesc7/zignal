@@ -247,7 +247,6 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
 				me.offer = msg.Value
-				me.pair = nil
 				me.busy = false
 				answer.Key = me.key + "@" + me.pwd
 
@@ -274,16 +273,15 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			case MT_RECEIVEANSWER: //клиент1 подтвердил получение answer
 				//тут нет логики
+				answer.Type = MT_NOANSWER
 
-			case MT_CONNECT: //клиент1 установил соединение
-				me.busy = true
-
-			case MT_DISCONNECT: //клиент1 разорвал соединение
-				me.busy = false
+			case MT_CONNECT, MT_DISCONNECT: //клиент1 установил соединение
+				me.busy = msg.Type == MT_CONNECT
+				answer.Type = MT_NOANSWER
 
 			default:
-				answer.Type = MT_NOANSWER
 				log.Printf("Wrong type: %d", msg.Type)
+				answer.Type = MT_NOANSWER
 			}
 			return
 		}(); exit {
