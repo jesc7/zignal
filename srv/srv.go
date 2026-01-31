@@ -91,14 +91,34 @@ func Start(ctx context.Context, service bool) error {
 		quit := make(chan os.Signal, 2)
 		defer close(quit)
 		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+		t5 := time.NewTicker(1 * time.Minute)
 
 		for {
 			select {
 			case <-quit:
 				cancel()
 				return
+
 			case <-ctx.Done():
 				return
+
+			case <-t5.C:
+				for c := range clients {
+					func() {
+						defer func() {
+							if msg := recover(); msg != nil {
+								delete(clients, c)
+								for k, v := range keys {
+									if v == c {
+										delete(keys, k)
+										break
+									}
+								}
+							}
+						}()
+						c.WriteJSON(Msg{Type: MT_PING})
+					}()
+				}
 			}
 		}
 	}()
