@@ -112,6 +112,7 @@ type Client struct {
 	pwd       string
 	isOfferer bool
 	offer     string
+	conn      *websocket.Conn
 	pairConn  *websocket.Conn
 }
 
@@ -131,20 +132,20 @@ func generateKey(length int) (string, error) {
 	return "", errors.New("error key generate")
 }
 
-func getClient(key string) (*Client, *websocket.Conn, error) {
+func getClient(key string) (*Client, error) {
 	sl := strings.Split(key, "@")
 	if len(sl) < 2 {
-		return nil, nil, ErrKeyNotFound
+		return nil, ErrKeyNotFound
 	}
 	conn, ok := keys[sl[0]] //ищем в мапе ключей
 	if !ok {
-		return nil, nil, ErrKeyNotFound
+		return nil, ErrKeyNotFound
 	}
 	c, ok := clients[conn] //ищем в мапе клиентов
 	if !ok || c.pwd != sl[1] {
-		return nil, nil, ErrKeyNotFound
+		return nil, ErrKeyNotFound
 	}
-	return c, conn, nil
+	return c, nil
 }
 
 func checkType(c *Client, mt MessageType) error {
@@ -193,6 +194,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		key:       key,
 		pwd:       util.RandomString(4, "0123456789"),
 		isOfferer: true, //изначально все клиенты - оффереры
+		conn:      conn,
 	}
 	clients[conn] = me
 	mu.Unlock()
@@ -235,12 +237,14 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				receiver = conn
 				me.isOfferer = true
 				me.offer = msg.Value
+				me.pairConn = nil
 				answer.Key = me.key + "@" + me.pwd
 
 			case MT_SENDAUTH: //клиент2 отправил auth (пару ключ@пароль)
 				receiver = conn
 				me.isOfferer = false //клиент перестает быть Offerer и становится Answerer
 				me.offer = ""
+				me.pairConn = nil
 				if client, e = getClient(msg.Key); e != nil {
 					return
 				}
@@ -250,14 +254,20 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					}
 					client.pairConn = nil
 				}
-				//me.pairConn =
+				me.pairConn = client.conn
 				answer.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
 
 			case MT_SENDANSWER: //клиент2 отправил answer для клиента1, пересылаем клиенту1
-				if client, e = getClient(msg.Key); e != nil {
+				receiver = conn
+
+				if e = me.pairConn.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
+					Type:  MT_RECEIVEANSWER,
+					Value: msg.Value,
+				}); e != nil {
 					return
 				}
-				receiver = keys[client.key]
+
+				receiver = me.pairConn
 				answer.Type = MT_RECEIVEANSWER
 				answer.Value = msg.Value
 
