@@ -115,7 +115,7 @@ type Client struct {
 }
 
 var (
-	mut     sync.Mutex
+	mu      sync.Mutex
 	keys    = make(map[string]*websocket.Conn)
 	clients = make(map[*websocket.Conn]*Client)
 )
@@ -138,10 +138,10 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mut.Lock()
+	mu.Lock()
 	key, e := generateKey(8) //генерим ключ
 	if e != nil {
-		mut.Unlock()
+		mu.Unlock()
 		log.Printf("Generate key error: %v", e)
 		time.Sleep(3 * time.Second)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -155,7 +155,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		pwd:       util.RandomString(4, "0123456789"),
 		isOfferer: true,
 	}
-	mut.Unlock()
+	mu.Unlock()
 
 	defer func() {
 		delete(keys, clients[conn].key)
