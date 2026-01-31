@@ -23,10 +23,11 @@ import (
 type MessageType int
 
 const (
-	MT_SENDOFFER     MessageType = iota //клиент1 отправил offer
-	MT_SENDAUTH                         //клиент2 отправил auth
-	MT_SENDANSWER                       //клиент2 отправил answer
-	MT_RECEIVEANSWER                    //клиенту1 отправили answer клиента2
+	MT_NOANSWER      MessageType = iota - 1 //не отправлять ответ
+	MT_SENDOFFER                            //клиент1 отправил offer
+	MT_SENDAUTH                             //клиент2 отправил auth
+	MT_SENDANSWER                           //клиент2 отправил answer
+	MT_RECEIVEANSWER                        //клиенту1 отправили answer клиента2
 )
 
 var (
