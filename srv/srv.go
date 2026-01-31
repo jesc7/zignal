@@ -30,6 +30,8 @@ const (
 	MT_SENDAUTH                             //клиент2 отправил auth
 	MT_SENDANSWER                           //клиент2 отправил answer
 	MT_RECEIVEANSWER                        //клиенту1 отправили answer клиента2
+	MT_CONNECT                              //клиент1 уведомляет об установлении соединения
+	MT_DISCONNECT                           //клиент1 уведомляет о разрыве соединения
 )
 
 var (
@@ -270,7 +272,10 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				exit = true //клиенту2 сигнальный сервер больше не нужен, выходим
 
 			case MT_RECEIVEANSWER: //клиент1 подтвердил получение answer
-				exit = true //клиенту1 сигнальный сервер больше не нужен, выходим
+				//тут нет логики
+
+			case MT_CONNECT: //клиент1 установил соединение
+				me.busy = true
 
 			default:
 				answer.Type = MT_NOANSWER
