@@ -108,11 +108,11 @@ type Msg struct {
 }
 
 type Client struct {
-	key          string
-	pwd          string
-	isOfferer    bool
-	offer        string
-	answererConn *websocket.Conn
+	key       string
+	pwd       string
+	isOfferer bool
+	offer     string
+	pairConn  *websocket.Conn
 }
 
 var (
@@ -131,20 +131,20 @@ func generateKey(length int) (string, error) {
 	return "", errors.New("error key generate")
 }
 
-func getClient(key string) (*Client, error) {
+func getClient(key string) (*Client, *websocket.Conn, error) {
 	sl := strings.Split(key, "@")
 	if len(sl) < 2 {
-		return nil, ErrKeyNotFound
+		return nil, nil, ErrKeyNotFound
 	}
 	conn, ok := keys[sl[0]] //ищем в мапе ключей
 	if !ok {
-		return nil, ErrKeyNotFound
+		return nil, nil, ErrKeyNotFound
 	}
 	c, ok := clients[conn] //ищем в мапе клиентов
 	if !ok || c.pwd != sl[1] {
-		return nil, ErrKeyNotFound
+		return nil, nil, ErrKeyNotFound
 	}
-	return c, nil
+	return c, conn, nil
 }
 
 func checkType(c *Client, mt MessageType) error {
@@ -239,21 +239,21 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			case MT_SENDAUTH: //клиент2 отправил auth (пару ключ@пароль)
 				receiver = conn
-				me.isOfferer = false //клиент перестает быть офферером
+				me.isOfferer = false //клиент перестает быть Offerer и становится Answerer
 				me.offer = ""
 				if client, e = getClient(msg.Key); e != nil {
 					return
 				}
-				if client.answererConn != nil {
-					if clients[client.answererConn] != nil {
+				if client.pairConn != nil {
+					if clients[client.pairConn] != nil {
 						return false, errors.New("Клиент уже установил соединение")
 					}
-					client.answererConn = nil
+					client.pairConn = nil
 				}
-
+				//me.pairConn =
 				answer.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
 
-			case MT_SENDANSWER: //клиент2 отправил answer, пересылаем клиенту1
+			case MT_SENDANSWER: //клиент2 отправил answer для клиента1, пересылаем клиенту1
 				if client, e = getClient(msg.Key); e != nil {
 					return
 				}
