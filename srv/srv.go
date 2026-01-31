@@ -23,7 +23,8 @@ import (
 type MessageType int
 
 const (
-	MT_NOANSWER      MessageType = iota - 1 //не отправлять ответ
+	MT_NOANSWER      MessageType = iota - 2 //не отправлять ответ
+	MT_PING                                 //ping
 	MT_SENDOFFER                            //клиент1 отправил offer
 	MT_SENDAUTH                             //клиент2 отправил auth
 	MT_SENDANSWER                           //клиент2 отправил answer
@@ -91,10 +92,14 @@ func Start(ctx context.Context, service bool) error {
 		defer close(quit)
 		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-		select {
-		case <-quit:
-			cancel()
-		case <-ctx.Done():
+		for {
+			select {
+			case <-quit:
+				cancel()
+				return
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
@@ -118,6 +123,7 @@ type Client struct {
 	conn      *websocket.Conn
 	pairConn  *websocket.Conn
 	busy      bool
+	pingTime  int64
 }
 
 var (
@@ -227,7 +233,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					answer.Value = e.Error()
 					time.Sleep(5 * time.Second)
 				}
-				if answer.Type != MT_NOANSWER {
+				if answer.Type >= 0 {
 					log.Printf("OUT: %#v", answer)
 
 					if e = conn.WriteJSON(answer); e != nil {
@@ -238,6 +244,9 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			var client *Client
 			switch msg.Type {
+			case MT_PING:
+				me.pingTime = time.Now().Unix()
+
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
 				me.isOfferer = true
 				me.offer = msg.Value
