@@ -267,6 +267,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				me.isOfferer = true
 				me.offer = msg.Value
 				me.pairConn = nil
+				me.busy = false
 				answer.Key = me.key + "@" + me.pwd
 
 			case MT_SENDAUTH: //клиент2 отправил auth (пару ключ@пароль)
