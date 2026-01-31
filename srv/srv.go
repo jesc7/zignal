@@ -214,7 +214,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		log.Printf("IN:  %#v", msg)
 
 		if exit, _ := func() (exit bool, e error) {
-			receiver, answer, needAnswer := &websocket.Conn{}, Msg{Type: msg.Type}, true
+			answer, needAnswer := Msg{Type: msg.Type}, true
 			defer func() {
 				if e != nil {
 					log.Println(e)
@@ -225,7 +225,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				if needAnswer {
 					log.Printf("OUT: %#v", answer)
 
-					if e = receiver.WriteJSON(answer); e != nil {
+					if e = conn.WriteJSON(answer); e != nil {
 						log.Println(e)
 					}
 				}
@@ -234,14 +234,12 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			var client *Client
 			switch msg.Type {
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
-				receiver = conn
 				me.isOfferer = true
 				me.offer = msg.Value
 				me.pairConn = nil
 				answer.Key = me.key + "@" + me.pwd
 
 			case MT_SENDAUTH: //клиент2 отправил auth (пару ключ@пароль)
-				receiver = conn
 				me.isOfferer = false //клиент перестает быть Offerer и становится Answerer
 				me.offer = ""
 				me.pairConn = nil
@@ -258,7 +256,6 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				answer.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
 
 			case MT_SENDANSWER: //клиент2 отправил answer для клиента1, пересылаем клиенту1
-				receiver = conn
 				answer.Type = msg.Type
 				answer.Key = msg.Key
 
