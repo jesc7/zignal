@@ -23,15 +23,15 @@ import (
 type MessageType int
 
 const (
-	MT_NOANSWER      MessageType = iota - 3 //не отправлять ответ
-	MT_PING                                 //ping
-	MT_PONG                                 //pong
+	MT_NOANSWER      MessageType = iota - 1 //не отправлять ответ
 	MT_SENDOFFER                            //клиент1 отправил offer
 	MT_SENDAUTH                             //клиент2 отправил auth
 	MT_SENDANSWER                           //клиент2 отправил answer
 	MT_RECEIVEANSWER                        //клиенту1 отправили answer клиента2
 	MT_CONNECT                              //клиент1 уведомляет об установлении соединения
 	MT_DISCONNECT                           //клиент1 уведомляет о разрыве соединения
+	MT_PING                                 //ping
+	MT_PONG                                 //pong
 )
 
 var (
@@ -231,7 +231,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					answer.Value = e.Error()
 					time.Sleep(5 * time.Second)
 				}
-				if answer.Type >= 0 {
+				if answer.Type > MT_NOANSWER {
 					log.Printf("OUT: %#v", answer)
 
 					if e = conn.WriteJSON(answer); e != nil {
@@ -244,6 +244,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			switch msg.Type {
 			case MT_PONG:
 				me.heartbeat = time.Now().Unix()
+				answer.Type = MT_NOANSWER
 
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
 				me.offer = msg.Value
@@ -275,7 +276,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				//тут нет логики
 				answer.Type = MT_NOANSWER
 
-			case MT_CONNECT, MT_DISCONNECT: //клиент1 установил соединение
+			case MT_CONNECT, MT_DISCONNECT: //клиент1 установил/разорвал соединение
 				me.busy = msg.Type == MT_CONNECT
 				answer.Type = MT_NOANSWER
 
