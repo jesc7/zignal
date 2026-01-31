@@ -20,11 +20,13 @@ import (
 	"github.com/jesc7/zignal/util"
 )
 
+type MessageType int
+
 const (
-	MT_SENDOFFER     = iota //клиент1 отправил offer
-	MT_SENDAUTH             //клиент2 отправил auth
-	MT_SENDANSWER           //клиент2 отправил answer
-	MT_RECEIVEANSWER        //клиенту1 отправили answer клиента2
+	MT_SENDOFFER     MessageType = iota //клиент1 отправил offer
+	MT_SENDAUTH                         //клиент2 отправил auth
+	MT_SENDANSWER                       //клиент2 отправил answer
+	MT_RECEIVEANSWER                    //клиенту1 отправили answer клиента2
 )
 
 var (
@@ -97,11 +99,11 @@ func Start(ctx context.Context, service bool) error {
 }
 
 type Msg struct {
-	Type  int    `json:"type"`
-	Code  int    `json:"code"`
-	Error string `json:"error,omitzero"`
-	Key   string `json:"key,omitzero"`
-	Value string `json:"val,omitzero"`
+	Type  MessageType `json:"type"`
+	Code  int         `json:"code"`
+	Error string      `json:"error,omitzero"`
+	Key   string      `json:"key,omitzero"`
+	Value string      `json:"val,omitzero"`
 }
 
 type Client struct {
