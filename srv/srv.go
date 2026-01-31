@@ -31,8 +31,10 @@ const (
 )
 
 var (
-	upgrader       = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	ErrKeyNotFound = errors.New("Ключ/пароль не найдены")
+	upgrader                  = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	ErrClientNotFound         = errors.New("Клиент не найден")
+	ErrClientAlreadyConnected = errors.New("Клиент уже установил соединение")
+	ErrKeyNotFound            = errors.New("Ключ/пароль не найдены")
 )
 
 func Start(ctx context.Context, service bool) error {
@@ -215,7 +217,8 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		log.Printf("IN:  %#v", msg)
 
 		if exit, _ := func() (exit bool, e error) {
-			answer, needAnswer := Msg{Type: msg.Type}, true
+			answer := Msg{Type: msg.Type}
+
 			defer func() {
 				if e != nil {
 					log.Println(e)
@@ -223,7 +226,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					answer.Value = e.Error()
 					time.Sleep(5 * time.Second)
 				}
-				if needAnswer {
+				if answer.Type != MT_NOANSWER {
 					log.Printf("OUT: %#v", answer)
 
 					if e = conn.WriteJSON(answer); e != nil {
@@ -247,9 +250,12 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				if client, e = getClient(msg.Key); e != nil {
 					return
 				}
+				if !client.isOfferer {
+					return false, ErrClientNotFound
+				}
 				if client.pairConn != nil {
 					if clients[client.pairConn] != nil {
-						return false, errors.New("Клиент уже установил соединение")
+						return false, ErrClientAlreadyConnected
 					}
 					client.pairConn = nil
 				}
@@ -257,9 +263,6 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				answer.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
 
 			case MT_SENDANSWER: //клиент2 отправил answer для клиента1, пересылаем клиенту1
-				answer.Type = msg.Type
-				answer.Key = msg.Key
-
 				if e = me.pairConn.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
 					Type:  MT_RECEIVEANSWER,
 					Value: msg.Value,
@@ -270,7 +273,9 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				go func() {
 					defer func() { recover() }()
 					<-time.After(10 * time.Second)
+					//if conn != nil {
 					conn.Close() //принудительно закрываем соединение клиента2 через 10сек, т.к. сведение пиров завершено
+					//}
 				}()
 
 				//exit = true //клиенту2 сигнальный сервер больше не нужен, выходим
@@ -282,7 +287,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				exit = true //клиенту1 сигнальный сервер больше не нужен, выходим
 
 			default:
-				needAnswer = false
+				answer.Type = MT_NOANSWER
 				log.Printf("Wrong type: %d", msg.Type)
 			}
 			return
