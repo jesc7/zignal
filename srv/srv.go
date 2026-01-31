@@ -131,6 +131,43 @@ func generateKey(length int) (string, error) {
 	return "", errors.New("error key generate")
 }
 
+func getOfferer(key string) (*Client, error) {
+	sl := strings.Split(key, "@")
+	if len(sl) < 2 {
+		return nil, ErrKeyNotFound
+	}
+	conn, ok := keys[sl[0]] //ищем в мапе ключей
+	if !ok {
+		return nil, ErrKeyNotFound
+	}
+	c, ok := clients[conn] //ищем в мапе клиентов
+	if !ok || c.pwd != sl[1] {
+		return nil, ErrKeyNotFound
+	}
+	return c, nil
+}
+
+func checkType(c *Client, mt MessageType) error {
+	switch c.isOfferer {
+	case true:
+		switch mt {
+		case MT_RECEIVEANSWER:
+		default:
+			return errors.New("Несогласованная команда")
+		}
+
+	default:
+		switch mt {
+		case MT_SENDOFFER:
+		case MT_SENDAUTH:
+		case MT_SENDANSWER:
+		default:
+			return errors.New("Несогласованная команда")
+		}
+	}
+	return nil
+}
+
 func handleWS(w http.ResponseWriter, r *http.Request) {
 	conn, e := upgrader.Upgrade(w, r, nil)
 	if e != nil {
@@ -154,30 +191,9 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	clients[conn] = &Client{
 		key:       key,
 		pwd:       util.RandomString(4, "0123456789"),
-		isOfferer: true,
+		isOfferer: true, //изначально все клиенты - оффереры
 	}
 	mu.Unlock()
-
-	checkType := func(c *Client, mt MessageType) error {
-		switch c.isOfferer {
-		case true:
-			switch mt {
-			case MT_RECEIVEANSWER:
-			default:
-				return errors.New("Несогласованная команда")
-			}
-
-		default:
-			switch mt {
-			case MT_SENDOFFER:
-			case MT_SENDAUTH:
-			case MT_SENDANSWER:
-			default:
-				return errors.New("Несогласованная команда")
-			}
-		}
-		return nil
-	}
 
 	defer func() {
 		delete(keys, clients[conn].key)
@@ -211,22 +227,6 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				}
 			}()
 
-			_auth := func(key string) (*Client, error) {
-				sl := strings.Split(key, "@")
-				if len(sl) < 2 {
-					return nil, ErrKeyNotFound
-				}
-				conn, ok := keys[sl[0]] //ищем в мапе ключей
-				if !ok {
-					return nil, ErrKeyNotFound
-				}
-				c, ok := clients[conn] //ищем в мапе клиентов
-				if !ok || c.pwd != sl[1] {
-					return nil, ErrKeyNotFound
-				}
-				return c, nil
-			}
-
 			var client *Client
 			switch msg.Type {
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
@@ -238,13 +238,13 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			case MT_SENDAUTH: //клиент2 отправил auth
 				receiver = conn
-				if client, e = _auth(msg.Key); e != nil {
+				if client, e = getOfferer(msg.Key); e != nil {
 					return
 				}
 				msgAnswer.Value = client.payload //авторизация пройдена, отдаем offer клиента1
 
 			case MT_SENDANSWER: //клиент2 отправил answer, пересылаем клиенту1
-				client, e = _auth(msg.Key)
+				client, e = getOfferer(msg.Key)
 				if e != nil {
 					return
 				}
