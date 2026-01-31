@@ -37,6 +37,7 @@ var (
 	ErrClientNotFound         = errors.New("Клиент не найден")
 	ErrClientAlreadyConnected = errors.New("Клиент уже установил соединение")
 	ErrKeyNotFound            = errors.New("Ключ/пароль не найдены")
+	ErrUnacceptableCommand    = errors.New("Недопустимая команда")
 )
 
 func Start(ctx context.Context, service bool) error {
@@ -137,7 +138,7 @@ type Client struct {
 	isOfferer bool
 	offer     string
 	conn      *websocket.Conn
-	pairConn  *websocket.Conn
+	pair      *websocket.Conn
 	busy      bool
 	heartbeat int64
 }
@@ -266,31 +267,26 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
 				me.isOfferer = true
 				me.offer = msg.Value
-				me.pairConn = nil
+				me.pair = nil
 				me.busy = false
 				answer.Key = me.key + "@" + me.pwd
 
 			case MT_SENDAUTH: //клиент2 отправил auth (пару ключ@пароль)
 				me.isOfferer = false //клиент перестает быть Offerer и становится Answerer
 				me.offer = ""
-				me.pairConn = nil
-				if client, e = getClient(msg.Key); e != nil {
-					return
-				}
-				if !client.isOfferer {
+				me.pair = nil
+				if client, e = getClient(msg.Key); e != nil || !client.isOfferer || client.busy {
 					return false, ErrClientNotFound
 				}
-				if client.pairConn != nil {
-					if clients[client.pairConn] != nil {
-						return false, ErrClientAlreadyConnected
-					}
-					client.pairConn = nil
-				}
-				me.pairConn = client.conn
+				me.pair = client.conn
 				answer.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
 
 			case MT_SENDANSWER: //клиент2 отправил answer для клиента1, пересылаем клиенту1
-				if e = me.pairConn.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
+				if me.pair == nil {
+					return false, ErrUnacceptableCommand
+				}
+
+				if e = me.pair.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
 					Type:  MT_RECEIVEANSWER,
 					Value: msg.Value,
 				}); e != nil {
