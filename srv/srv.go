@@ -189,15 +189,16 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	keys[key] = conn //добавляем клиента в коллекцию
-	clients[conn] = &Client{
+	me := &Client{
 		key:       key,
 		pwd:       util.RandomString(4, "0123456789"),
 		isOfferer: true, //изначально все клиенты - оффереры
 	}
+	clients[conn] = me
 	mu.Unlock()
 
 	defer func() {
-		delete(keys, clients[conn].key)
+		delete(keys, me.key)
 		delete(clients, conn)
 	}()
 
@@ -232,14 +233,14 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			switch msg.Type {
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
 				receiver = conn
-				client = clients[conn]
-				client.isOfferer = true
-				client.payload = msg.Value
-				answer.Key = client.key + "@" + client.pwd
+				me.isOfferer = true
+				me.payload = msg.Value
+				answer.Key = me.key + "@" + me.pwd
 
-			case MT_SENDAUTH: //клиент2 отправил auth
+			case MT_SENDAUTH: //клиент2 отправил auth (пару ключ@пароль)
 				receiver = conn
-				clients[conn].isOfferer = false //клиент перестает быть офферером
+				me.isOfferer = false //клиент перестает быть офферером
+				me.payload = ""
 				if client, e = getOfferer(msg.Key); e != nil {
 					return
 				}
