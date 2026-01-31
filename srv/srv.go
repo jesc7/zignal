@@ -151,6 +151,7 @@ func checkType(c *Client, mt MessageType) error {
 	switch c.isOfferer {
 	case true:
 		switch mt {
+		case MT_SENDOFFER:
 		case MT_RECEIVEANSWER:
 		default:
 			return errors.New("Несогласованная команда")
@@ -210,18 +211,18 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		log.Printf("IN:  %#v", msg)
 
 		if exit, _ := func() (exit bool, e error) {
-			receiver, msgAnswer, needAnswer := &websocket.Conn{}, Msg{Type: msg.Type}, true
+			receiver, answer, needAnswer := &websocket.Conn{}, Msg{Type: msg.Type}, true
 			defer func() {
 				if e != nil {
 					log.Println(e)
-					msgAnswer.Code = -1
-					msgAnswer.Value = e.Error()
+					answer.Code = -1
+					answer.Value = e.Error()
 					time.Sleep(5 * time.Second)
 				}
 				if needAnswer {
-					log.Printf("OUT: %#v", msgAnswer)
+					log.Printf("OUT: %#v", answer)
 
-					if e = receiver.WriteJSON(msgAnswer); e != nil {
+					if e = receiver.WriteJSON(answer); e != nil {
 						log.Println(e)
 					}
 				}
@@ -234,14 +235,15 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				client = clients[conn]
 				client.isOfferer = true
 				client.payload = msg.Value
-				msgAnswer.Key = client.key + "@" + client.pwd
+				answer.Key = client.key + "@" + client.pwd
 
 			case MT_SENDAUTH: //клиент2 отправил auth
 				receiver = conn
+				clients[conn].isOfferer = false //клиент перестает быть офферером
 				if client, e = getOfferer(msg.Key); e != nil {
 					return
 				}
-				msgAnswer.Value = client.payload //авторизация пройдена, отдаем offer клиента1
+				answer.Value = client.payload //авторизация пройдена, отдаем offer клиента1
 
 			case MT_SENDANSWER: //клиент2 отправил answer, пересылаем клиенту1
 				client, e = getOfferer(msg.Key)
@@ -249,8 +251,8 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				receiver = keys[client.key]
-				msgAnswer.Type = MT_RECEIVEANSWER
-				msgAnswer.Value = msg.Value
+				answer.Type = MT_RECEIVEANSWER
+				answer.Value = msg.Value
 
 				go func() {
 					defer func() { recover() }()
