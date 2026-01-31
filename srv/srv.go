@@ -158,7 +158,24 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	mu.Unlock()
 
-	checkType := func() error {
+	checkType := func(c *Client, mt MessageType) error {
+		switch c.isOfferer {
+		case true:
+			switch mt {
+			case MT_RECEIVEANSWER:
+			default:
+				return errors.New("Несогласованная команда")
+			}
+
+		default:
+			switch mt {
+			case MT_SENDOFFER:
+			case MT_SENDAUTH:
+			case MT_SENDANSWER:
+			default:
+				return errors.New("Несогласованная команда")
+			}
+		}
 		return nil
 	}
 
