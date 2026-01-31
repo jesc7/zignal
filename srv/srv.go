@@ -117,6 +117,7 @@ type Client struct {
 	offer     string
 	conn      *websocket.Conn
 	pairConn  *websocket.Conn
+	busy      bool
 }
 
 var (
