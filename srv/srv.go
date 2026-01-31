@@ -269,21 +269,9 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				}); e != nil {
 					return
 				}
-
-				go func() {
-					defer func() { recover() }()
-					<-time.After(10 * time.Second)
-					//if conn != nil {
-					conn.Close() //принудительно закрываем соединение клиента2 через 10сек, т.к. сведение пиров завершено
-					//}
-				}()
-
-				//exit = true //клиенту2 сигнальный сервер больше не нужен, выходим
+				exit = true //клиенту2 сигнальный сервер больше не нужен, выходим
 
 			case MT_RECEIVEANSWER: //клиент1 подтвердил получение answer
-				if me.pairConn != nil {
-					me.pairConn.Close()
-				}
 				exit = true //клиенту1 сигнальный сервер больше не нужен, выходим
 
 			default:
