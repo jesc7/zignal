@@ -259,6 +259,8 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			case MT_SENDANSWER: //клиент2 отправил answer для клиента1, пересылаем клиенту1
 				receiver = conn
+				answer.Type = msg.Type
+				answer.Key = msg.Key
 
 				if e = me.pairConn.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
 					Type:  MT_RECEIVEANSWER,
@@ -267,25 +269,18 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				receiver = me.pairConn
-				answer.Type = MT_RECEIVEANSWER
-				answer.Value = msg.Value
-
 				go func() {
 					defer func() { recover() }()
-					time.Sleep(10 * time.Second)
-					receiver.Close() //принудительно закрываем соединение клиента1 через 10сек, т.к. сведение пиров завершено
+					<-time.After(10 * time.Second)
+					conn.Close() //принудительно закрываем соединение клиента2 через 10сек, т.к. сведение пиров завершено
 				}()
 
-				if e = conn.WriteJSON(Msg{ //шлем ответ клиенту2, что все ок
-					Type: msg.Type,
-					Key:  msg.Key,
-				}); e != nil {
-					log.Printf("Error: %v", e)
-				}
-				exit = true //клиенту2 сигнальный сервер больше не нужен, выходим
+				//exit = true //клиенту2 сигнальный сервер больше не нужен, выходим
 
 			case MT_RECEIVEANSWER: //клиент1 подтвердил получение answer
+				if me.pairConn != nil {
+					me.pairConn.Close()
+				}
 				exit = true //клиенту1 сигнальный сервер больше не нужен, выходим
 
 			default:
