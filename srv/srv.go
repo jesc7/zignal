@@ -141,6 +141,7 @@ type Client struct {
 	conn      *websocket.Conn
 	pair      *websocket.Conn
 	busy      bool
+	prev      MessageType
 	heartbeat int64
 }
 
@@ -276,6 +277,9 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			case MT_CONNECT: //клиент1 установил соединение
 				me.busy = true
+
+			case MT_DISCONNECT: //клиент1 разорвал соединение
+				me.busy = false
 
 			default:
 				answer.Type = MT_NOANSWER
