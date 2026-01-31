@@ -139,7 +139,6 @@ type Client struct {
 	conn      *websocket.Conn
 	pair      *websocket.Conn
 	busy      bool
-	prevType  MessageType
 	heartbeat int64
 }
 
