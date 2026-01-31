@@ -25,7 +25,7 @@ type MessageType int
 const (
 	MT_NOANSWER      MessageType = iota - 3 //не отправлять ответ
 	MT_PING                                 //ping
-	MT_PONG                                 //ping
+	MT_PONG                                 //pong
 	MT_SENDOFFER                            //клиент1 отправил offer
 	MT_SENDAUTH                             //клиент2 отправил auth
 	MT_SENDANSWER                           //клиент2 отправил answer
@@ -104,15 +104,15 @@ func Start(ctx context.Context, service bool) error {
 				return
 
 			case <-t1.C:
-				for _, client := range clients {
+				for _, с := range clients {
 					func() {
 						defer func() {
 							if msg := recover(); msg != nil {
-								delete(keys, client.key)
-								delete(clients, client.conn)
+								delete(keys, с.key)
+								delete(clients, с.conn)
 							}
 						}()
-						client.conn.WriteJSON(Msg{Type: MT_PING})
+						с.conn.WriteJSON(Msg{Type: MT_PING})
 					}()
 				}
 			}
@@ -139,7 +139,7 @@ type Client struct {
 	conn      *websocket.Conn
 	pairConn  *websocket.Conn
 	busy      bool
-	pingTime  int64
+	heartbeat int64
 }
 
 var (
@@ -260,8 +260,8 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			var client *Client
 			switch msg.Type {
-			case MT_PING:
-				me.pingTime = time.Now().Unix()
+			case MT_PONG:
+				me.heartbeat = time.Now().Unix()
 
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
 				me.isOfferer = true
