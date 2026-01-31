@@ -103,20 +103,15 @@ func Start(ctx context.Context, service bool) error {
 				return
 
 			case <-t5.C:
-				for c := range clients {
+				for _, client := range clients {
 					func() {
 						defer func() {
 							if msg := recover(); msg != nil {
-								delete(clients, c)
-								for k, v := range keys {
-									if v == c {
-										delete(keys, k)
-										break
-									}
-								}
+								delete(keys, client.key)
+								delete(clients, client.conn)
 							}
 						}()
-						c.WriteJSON(Msg{Type: MT_PING})
+						client.conn.WriteJSON(Msg{Type: MT_PING})
 					}()
 				}
 			}
@@ -230,7 +225,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	mu.Unlock()
 
 	defer func() {
-		delete(keys, me.key)
+		delete(keys, key)
 		delete(clients, conn)
 	}()
 
