@@ -30,7 +30,8 @@ const (
 )
 
 var (
-	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	upgrader       = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	ErrKeyNotFound = errors.New("Ключ/пароль не найдены")
 )
 
 func Start(ctx context.Context, service bool) error {
@@ -143,7 +144,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	if e != nil {
 		mu.Unlock()
 		log.Printf("Generate key error: %v", e)
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(e.Error()))
 		return
@@ -178,29 +179,29 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					log.Println(e)
 					msgAnswer.Code = -1
 					msgAnswer.Value = e.Error()
-					time.Sleep(3 * time.Second)
+					time.Sleep(5 * time.Second)
 				}
 				if needAnswer {
 					log.Printf("OUT: %#v", msgAnswer)
 
 					if e = receiver.WriteJSON(msgAnswer); e != nil {
-						log.Printf("Error: %v", e)
+						log.Println(e)
 					}
 				}
 			}()
 
-			_auth := func(key string) (c *Client, e error) {
-				e = errors.New("Ключ/пароль не найдены")
+			_auth := func(key string) (*Client, error) {
 				sl := strings.Split(key, "@")
 				if len(sl) < 2 {
-					return
+					return nil, ErrKeyNotFound
 				}
 				conn, ok := keys[sl[0]] //ищем в мапе ключей
 				if !ok {
-					return
+					return nil, ErrKeyNotFound
 				}
-				if c, ok = clients[conn]; !ok || c.pwd != sl[1] { //ищем в мапе клиентов
-					return
+				c, ok := clients[conn] //ищем в мапе клиентов
+				if !ok || c.pwd != sl[1] {
+					return nil, ErrKeyNotFound
 				}
 				return c, nil
 			}
