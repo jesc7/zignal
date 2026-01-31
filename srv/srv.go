@@ -158,6 +158,10 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	mu.Unlock()
 
+	checkType := func() error {
+		return nil
+	}
+
 	defer func() {
 		delete(keys, clients[conn].key)
 		delete(clients, conn)
