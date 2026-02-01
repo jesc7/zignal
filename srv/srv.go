@@ -35,11 +35,11 @@ const (
 )
 
 var (
-	upgrader                  = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	ErrClientNotFound         = errors.New("Клиент не найден")
-	ErrClientAlreadyConnected = errors.New("Клиент уже установил соединение")
-	ErrKeyNotFound            = errors.New("Ключ/пароль не найдены")
-	ErrUnacceptableCommand    = errors.New("Недопустимая команда")
+	upgrader               = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	ErrClientNotFound      = errors.New("Клиент не найден")
+	ErrClientBusy          = errors.New("Клиент занят")
+	ErrKeyNotFound         = errors.New("Ключ/пароль не найдены")
+	ErrUnacceptableCommand = errors.New("Недопустимая команда")
 )
 
 func Start(ctx context.Context, service bool) error {
@@ -107,12 +107,12 @@ func Start(ctx context.Context, service bool) error {
 				return
 
 			case <-t1.C:
-				for _, с := range clients {
+				for _, с := range conns {
 					func() {
 						defer func() {
 							if msg := recover(); msg != nil {
 								delete(keys, с.key)
-								delete(clients, с.conn)
+								delete(conns, с.conn)
 							}
 						}()
 						с.conn.WriteJSON(Msg{Type: MT_PING})
@@ -148,9 +148,9 @@ type Client struct {
 func (c *Client) IsOfferer() bool { return c.offer != "" }
 
 var (
-	mu      sync.Mutex
-	keys    = make(map[string]*websocket.Conn)
-	clients = make(map[*websocket.Conn]*Client)
+	mu    sync.Mutex
+	keys  = make(map[string]*websocket.Conn)
+	conns = make(map[*websocket.Conn]*Client)
 )
 
 func generateKey(length int) (string, error) {
@@ -166,15 +166,15 @@ func generateKey(length int) (string, error) {
 func getClient(key string) (*Client, error) {
 	sl := strings.Split(key, "@")
 	if len(sl) < 2 {
-		return nil, ErrKeyNotFound
+		return nil, ErrClientNotFound
 	}
 	conn, ok := keys[sl[0]] //ищем в мапе ключей
 	if !ok {
-		return nil, ErrKeyNotFound
+		return nil, ErrClientNotFound
 	}
-	c, ok := clients[conn] //ищем в мапе клиентов
+	c, ok := conns[conn] //ищем в мапе клиентов
 	if !ok || c.pwd != sl[1] {
-		return nil, ErrKeyNotFound
+		return nil, ErrClientNotFound
 	}
 	return c, nil
 }
@@ -204,12 +204,12 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		pwd:  util.RandomString(4, "0123456789"),
 		conn: conn,
 	}
-	clients[conn] = me
+	conns[conn] = me
 	mu.Unlock()
 
 	defer func() {
 		delete(keys, key)
-		delete(clients, conn)
+		delete(conns, conn)
 	}()
 
 	for {
