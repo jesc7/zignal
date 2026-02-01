@@ -255,7 +255,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				me.offer = "" //клиент перестает быть Offerer и становится Answerer
 				me.pair = nil
 				if client, e = getClient(msg.Key); e != nil || !client.IsOfferer() || client.busy {
-					return false, ErrClientNotFound
+					return
 				}
 				me.pair = client.conn
 				answer.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
