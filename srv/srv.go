@@ -25,7 +25,6 @@ type MessageType int
 const (
 	MT_NOANSWER      MessageType = iota - 1 //не отправлять ответ
 	MT_SENDOFFER                            //клиент1 отправил offer
-	MT_SENDAUTH                             //клиент2 отправил auth
 	MT_SENDANSWER                           //клиент2 отправил answer
 	MT_RECEIVEANSWER                        //клиенту1 отправили answer клиента2
 	MT_CONNECT                              //клиент1 уведомляет об установлении соединения
@@ -139,7 +138,6 @@ type Client struct {
 	pwd       string
 	offer     string
 	conn      *websocket.Conn
-	pair      *websocket.Conn
 	busy      bool
 	prev      MessageType
 	heartbeat int64
@@ -233,7 +231,6 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				}
 				if answer.Type > MT_NOANSWER {
 					log.Printf("OUT: %#v", answer)
-
 					if e = conn.WriteJSON(answer); e != nil {
 						log.Println(e)
 					}
@@ -251,26 +248,19 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				me.busy = false
 				answer.Key = me.key + "@" + me.pwd
 
-			case MT_SENDAUTH: //клиент2 отправил auth (пару ключ@пароль)
-				me.offer = "" //клиент перестает быть Offerer и становится Answerer
-				me.pair = nil
+			case MT_SENDANSWER: //клиент2 отправил answer (key=ключ@пароль, value=answer)
+				me.offer = "" //клиент2 перестает быть Offerer и становится Answerer
 				if client, e = getClient(msg.Key); e != nil || !client.IsOfferer() || client.busy {
 					return
 				}
-				me.pair = client.conn
-				answer.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
-
-			case MT_SENDANSWER: //клиент2 отправил answer для клиента1, пересылаем клиенту1
-				if me.pair == nil {
-					return false, ErrUnacceptableCommand
-				}
-				if e = me.pair.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
+				if e = client.conn.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
 					Type:  MT_RECEIVEANSWER,
 					Value: msg.Value,
 				}); e != nil {
 					return
 				}
-				exit = true //клиенту2 сигнальный сервер больше не нужен, выходим
+				answer.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
+				exit = true                 //клиенту2 сигнальный сервер больше не нужен, выходим*/
 
 			case MT_RECEIVEANSWER: //клиент1 подтвердил получение answer
 				//тут нет логики
