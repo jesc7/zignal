@@ -244,8 +244,8 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				answer.Type = MT_NOANSWER
 
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
-				me.offer = msg.Value
 				me.busy = false
+				me.offer = msg.Value
 				answer.Key = me.key + "@" + me.pwd
 
 			case MT_SENDANSWER: //клиент2 отправил answer (key=ключ@пароль, value=answer)
