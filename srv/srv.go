@@ -263,7 +263,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				exit = true                 //клиенту2 сигнальный сервер больше не нужен, выходим*/
 
 			case MT_RECEIVEANSWER: //клиент1 подтвердил получение answer
-				//тут нет логики
+				//тут нет логики, возможно позже удалю
 				answer.Type = MT_NOANSWER
 
 			case MT_CONNECT, MT_DISCONNECT: //клиент1 установил/разорвал соединение
