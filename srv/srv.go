@@ -211,68 +211,68 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	for {
-		var msg Msg
-		if e := conn.ReadJSON(&msg); e != nil {
+		var in Msg
+		if e := conn.ReadJSON(&in); e != nil {
 			log.Printf("Read message error: %v", e)
 			break
 		}
 
-		log.Printf("IN:  %#v", msg)
+		log.Printf("IN:  %#v", in)
 
 		if exit, _ := func() (exit bool, e error) {
-			answer := Msg{Type: msg.Type}
+			out := Msg{Type: in.Type}
 
 			defer func() {
 				if e != nil {
 					log.Println(e)
-					answer.Code = -1
-					answer.Value = e.Error()
+					out.Code = -1
+					out.Value = e.Error()
 					time.Sleep(5 * time.Second)
 				}
-				if answer.Type > MT_NOANSWER {
-					log.Printf("OUT: %#v", answer)
-					if e = conn.WriteJSON(answer); e != nil {
+				if out.Type > MT_NOANSWER {
+					log.Printf("OUT: %#v", out)
+					if e = conn.WriteJSON(out); e != nil {
 						log.Println(e)
 					}
 				}
 			}()
 
 			var client *Client
-			switch msg.Type {
+			switch in.Type {
 			case MT_PONG:
 				me.heartbeat = time.Now().Unix()
-				answer.Type = MT_NOANSWER
+				out.Type = MT_NOANSWER
 
 			case MT_SENDOFFER: //клиент1 отправил offer, в ответ шлем key и password
 				me.busy = false
-				me.offer = msg.Value
-				answer.Key = me.key + "@" + me.pwd
+				me.offer = in.Value
+				out.Key = me.key + "@" + me.pwd
 
 			case MT_SENDANSWER: //клиент2 отправил answer (key=ключ@пароль, value=answer)
 				me.offer = "" //клиент2 перестает быть Offerer и становится Answerer
-				if client, e = getClient(msg.Key); e != nil || !client.IsOfferer() || client.busy {
+				if client, e = getClient(in.Key); e != nil || !client.IsOfferer() || client.busy {
 					return
 				}
 				if e = client.conn.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
 					Type:  MT_RECEIVEANSWER,
-					Value: msg.Value,
+					Value: in.Value,
 				}); e != nil {
 					return
 				}
-				answer.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
-				exit = true                 //клиенту2 сигнальный сервер больше не нужен, выходим*/
+				out.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
+				exit = true              //клиенту2 сигнальный сервер больше не нужен, выходим*/
 
 			case MT_RECEIVEANSWER: //клиент1 подтвердил получение answer
 				//тут нет логики, возможно позже удалю
-				answer.Type = MT_NOANSWER
+				out.Type = MT_NOANSWER
 
 			case MT_CONNECT, MT_DISCONNECT: //клиент1 установил/разорвал соединение
-				me.busy = msg.Type == MT_CONNECT
-				answer.Type = MT_NOANSWER
+				me.busy = in.Type == MT_CONNECT
+				out.Type = MT_NOANSWER
 
 			default:
-				log.Printf("Wrong type: %d", msg.Type)
-				answer.Type = MT_NOANSWER
+				log.Printf("Wrong type: %d", in.Type)
+				out.Type = MT_NOANSWER
 			}
 			return
 		}(); exit {
