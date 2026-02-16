@@ -94,7 +94,7 @@ func Start(ctx context.Context, service bool) error {
 		quit := make(chan os.Signal, 2)
 		defer close(quit)
 		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-		t1 := time.NewTicker(1 * time.Minute)
+		t1m := time.NewTicker(1 * time.Minute)
 
 		for {
 			select {
@@ -105,7 +105,7 @@ func Start(ctx context.Context, service bool) error {
 			case <-ctx.Done():
 				return
 
-			case <-t1.C:
+			case <-t1m.C:
 				for _, с := range conns {
 					func() {
 						defer func() {
