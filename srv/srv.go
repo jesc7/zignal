@@ -134,12 +134,12 @@ type Msg struct {
 }
 
 type Client struct {
-	key       string
-	pwd       string
-	offer     string
-	conn      *websocket.Conn
-	busy      bool
-	prev      MessageType
+	key   string
+	pwd   string
+	offer string
+	conn  *websocket.Conn
+	busy  bool
+	//prev      MessageType
 	heartbeat int64
 }
 
