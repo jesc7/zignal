@@ -128,7 +128,6 @@ func Start(ctx context.Context, service bool) error {
 type Msg struct {
 	Type  MessageType `json:"type"`
 	Code  int         `json:"code"`
-	Error string      `json:"error,omitzero"`
 	Key   string      `json:"key,omitzero"`
 	Value string      `json:"val,omitzero"`
 }
