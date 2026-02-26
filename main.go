@@ -63,7 +63,7 @@ func main() {
 	s, e := service.New(p, &service.Config{
 		Name:        "zignal",
 		DisplayName: "Simple signaling server",
-		Description: "Zignal is a simple signaling server for webrtc candidates",
+		Description: "Zignal is a simple signaling server for WebRTC candidates",
 	})
 	if e != nil {
 		log.Fatal(e)
