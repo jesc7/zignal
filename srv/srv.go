@@ -248,7 +248,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 			case MT_SENDANSWER: //клиент2 отправил answer (key=ключ@пароль, value=answer)
 				me.offer = "" //клиент2 перестает быть Offerer и становится Answerer
-				if client, e = getClient(in.Key); e != nil || !client.IsOfferer() || client.busy {
+				if client, e = getClient(in.Key); e != nil {
+					return
+				}
+				if !client.IsOfferer() || client.busy {
+					e = ErrClientBusy
 					return
 				}
 				if e = client.conn.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
