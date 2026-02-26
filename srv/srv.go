@@ -252,8 +252,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				if !client.IsOfferer() || client.busy {
-					e = ErrClientBusy
-					return
+					return false, ErrClientBusy
 				}
 				if e = client.conn.WriteJSON(Msg{ //шлем клиенту1 answer клиента2
 					Type:  MT_RECEIVEANSWER,
