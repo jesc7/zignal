@@ -261,7 +261,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				out.Value = client.offer //авторизация пройдена, отдаем клиенту2 offer клиента1
-				exit = true              //клиенту2 сигнальный сервер больше не нужен, выходим*/
+				exit = true              //клиенту2 сигнальный сервер больше не нужен, выходим
 
 			case MT_RECEIVEANSWER: //клиент1 подтвердил получение answer
 				//тут нет логики, возможно позже удалю

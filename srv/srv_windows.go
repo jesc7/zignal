@@ -9,7 +9,7 @@ import (
 func runPath(service bool) (string, error) {
 	res := os.Args[0]
 	if service {
-		key, e := registry.OpenKey(registry.LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\zttw", registry.QUERY_VALUE)
+		key, e := registry.OpenKey(registry.LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Services\\zignal", registry.QUERY_VALUE)
 		if e != nil {
 			return "", e
 		}
