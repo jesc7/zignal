@@ -106,15 +106,15 @@ func Start(ctx context.Context, service bool) error {
 				return
 
 			case <-t1m.C:
-				for _, с := range conns {
+				for _, c := range conns {
 					func() {
 						defer func() {
 							if msg := recover(); msg != nil {
-								delete(keys, с.key)
-								delete(conns, с.conn)
+								delete(keys, c.key)
+								delete(conns, c.conn)
 							}
 						}()
-						с.conn.WriteJSON(Msg{Type: MT_PING})
+						c.conn.WriteJSON(Msg{Type: MT_PING})
 					}()
 				}
 			}
